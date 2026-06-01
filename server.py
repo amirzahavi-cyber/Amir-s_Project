@@ -258,7 +258,7 @@ class ClientThread(threading.Thread):
             return False, None, None
 
         for i in range(len(self.map['monsters'])):
-            m_x, m_y = self.map['monsters'][i][1], self.map['monsters'][i][2]
+            m_x, m_y = self.map['monsters'][i][0], self.map['monsters'][i][1]
             if new_x == m_x and new_y == m_y:
                 self.async_msg.put_msg_to_all(f'HIT~{self.player_num}')
                 return False, None, None
@@ -413,14 +413,21 @@ class ClientThread(threading.Thread):
             if data[:3] == b'MOV':
                 direction = data[4:].decode()
                 self.map[f'p{self.player_num}_dir'] = direction
+                old_px, old_py = self.map[f'p{self.player_num}']
+                old_monsters = [(m[0], m[1]) for m in self.map['monsters']]
                 can, new_x, new_y = self.can_move(direction)
                 if can:
                     self.map[f'p{self.player_num}'] = (new_x, new_y)
                     if self.map['grid'][new_y][new_x] == 'F':
-                        self.map['scores'][self.player_num-1] += 50
+                        self.map['scores'][self.player_num - 1] += 50
                         self.map['grid'][new_y][new_x] = 'E'
                         with lock2:
                             self.map['changes'].add((new_x, new_y, 'E'))
+
+                    for i, (mx, my, _) in enumerate(self.map['monsters']):
+                        old_mx, old_my = old_monsters[i]
+                        if (new_x == old_mx and new_y == old_my) and (mx == old_px and my == old_py):
+                            self.async_msg.put_msg_to_all(f'HIT~{self.player_num}')
                 return 'ASYNC'
 
             if data[:3] == b'SPW':
