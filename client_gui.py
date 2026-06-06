@@ -601,6 +601,46 @@ class NewPasswordScreen(Screen):
             col = ICE_OK if getattr(self, '_ok', False) else ICE_ERR
             draw_text(surf, self.msg, FONT_SMALL, col, cx, 380)
 
+
+class EndScreen:
+    def __init__(self, result):
+        self.result = result
+        # Create fonts for the results display
+        self.title_font = pygame.font.SysFont("Arial", 60, bold=True)
+        self.msg_font = pygame.font.SysFont("Arial", 30)
+        self.sub_font = pygame.font.SysFont("Arial", 22, italic=True)
+
+    def handle_event(self, event):
+        pass  # Ignore keyboard/mouse inputs during the game-over screen
+
+    def update(self):
+        pass  # No physics or animations needed here
+
+    def draw(self, screen):
+        # 1. Fill the entire window with an icy blue background
+        screen.fill((210, 240, 255))
+
+        # 2. Render text based on win or lose status
+        if self.result == 'win':
+            title_text = self.title_font.render("🏆 VICTORY 🏆", True, (40, 180, 80))  # Green
+            msg_text = self.msg_font.render("All fruits collected successfully!", True, (60, 110, 160))
+        else:
+            title_text = self.title_font.render("💀 DEFEAT 💀", True, (220, 60, 60))  # Red
+            msg_text = self.msg_font.render("The monsters caught you!", True, (60, 110, 160))
+
+        countdown_text = self.sub_font.render("Closing game and disconnecting in 4 seconds...", True, (120, 140, 160))
+
+        # 3. Calculate center positions for all text layers
+        w, h = screen.get_width(), screen.get_height()
+        title_rect = title_text.get_rect(center=(w // 2, h // 2 - 60))
+        msg_rect = msg_text.get_rect(center=(w // 2, h // 2 + 10))
+        count_rect = countdown_text.get_rect(center=(w // 2, h // 2 + 80))
+
+        # 4. Draw the text layers onto the screen
+        screen.blit(title_text, title_rect)
+        screen.blit(msg_text, msg_rect)
+        screen.blit(countdown_text, count_rect)
+
 class MainScreen(Screen):
     # Layout constants
     CHAT_H      = 180   # height of the bottom chat strip
@@ -631,6 +671,8 @@ class MainScreen(Screen):
         self.player1_hdir = 'R'
         self.player2_hdir = 'R'
 
+        self.player1_alive = True
+        self.player2_alive = True
         self.grid = [['E'] * 26 for _ in range(14)]
         self.my_player_num = 0
         self.player1 = ()
@@ -858,7 +900,13 @@ class MainScreen(Screen):
         if self.btn_disc.handle_event(event): self.app.disconnect()
 
     def player_die(self, num):
-        pass
+        if num == 1:
+            self.player1_alive = False
+        else:
+            self.player2_alive = False
+        return
+
+
 
     def update(self):
         if self.teammate == "":
@@ -898,6 +946,11 @@ class MainScreen(Screen):
         # ── movement cooldown ──
         self.move_cooldown -= 1
         if self.move_cooldown > 0:
+            return
+
+        if self.my_player_num == 1 and not self.player1_alive:
+            return
+        if self.my_player_num == 2 and not self.player2_alive:
             return
 
         keys = pygame.key.get_pressed()
@@ -1119,6 +1172,17 @@ class ClientGUI:
                 num = int(data.split(b'~')[1].decode())
                 self._current.player_die(num)
 
+        if data[:3] == b'GEN':
+            if data[:3] == b'GEN':
+                condition = data.split(b'~')[1].decode()
+
+                # Switch the active screen display directly to our new EndScreen layout
+                self._current = EndScreen(condition)
+
+                # Start the 4-second timer to close the application (USEREVENT + 11)
+                pygame.time.set_timer(pygame.USEREVENT + 11, 4000)
+                return
+
         if data[:3] == b'ACD':
             username = data.decode().split('~')[1]
             self._update_users(username, add=False)
@@ -1165,6 +1229,9 @@ class ClientGUI:
                 if event.type == pygame.USEREVENT + 10:
                     pygame.time.set_timer(pygame.USEREVENT + 10, 0)
                     self.set_screen("login")
+                if event.type == pygame.USEREVENT + 11:
+                    pygame.time.set_timer(pygame.USEREVENT + 11, 0)
+                    running = False
                 if self._current:
                     self._current.handle_event(event)
 

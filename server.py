@@ -98,8 +98,9 @@ class ClientThread(threading.Thread):
                             if self.monster_tick >= 8:
                                 self.monster_tick = 0
                                 self.move_monsters()
-                            upd = self.build_upd()
-                            self.async_msg.put_msg_to_all(upd)
+                            if not self.map['over']:
+                                upd = self.build_upd()
+                                self.async_msg.put_msg_to_all(upd)
                         continue
             except Exception as e:
                 traceback.print_exc()
@@ -167,8 +168,13 @@ class ClientThread(threading.Thread):
                     p2x, p2y = self.map['p2']
                     if (dest_x == p1x and dest_y == p1y) or (x == p1x and y == p1y):
                         self.async_msg.put_msg_to_all(f'HIT~1')
+                        self.map['p1_alive'] = False
                     elif (dest_x == p2x and dest_y == p2y) or (x == p2x and y == p2y):
                         self.async_msg.put_msg_to_all(f'HIT~2')
+                        self.map['p2_alive'] = False
+                    if not self.map['p1_alive'] and not self.map['p2_alive']:
+                        timer = threading.Timer(0.5, self.trigger_end, args=['lose'])
+                        timer.start()
                     break
             else:
                 claimed.add((x, y))
@@ -261,6 +267,10 @@ class ClientThread(threading.Thread):
             m_x, m_y = self.map['monsters'][i][0], self.map['monsters'][i][1]
             if new_x == m_x and new_y == m_y:
                 self.async_msg.put_msg_to_all(f'HIT~{self.player_num}')
+                self.map[f'p{self.player_num}_alive'] = False
+                if not self.map['p1_alive'] and not self.map['p2_alive']:
+                    timer = threading.Timer(0.5, self.trigger_end, args=['lose'])
+                    timer.start()
                 return False, None, None
 
         tile = self.map['grid'][new_y][new_x]
@@ -394,7 +404,7 @@ class ClientThread(threading.Thread):
                         self.async_msg.put_msg_by_username(upd, username)
                         with lock:
                             cnt_logedin += 1
-                        self.player_num = cnt_logedin
+                            self.player_num = cnt_logedin
                         return f'SIL~{self.player_num}'
                 return 'ERR~01~Wrong password or username'
 
@@ -423,18 +433,34 @@ class ClientThread(threading.Thread):
                         self.map['grid'][new_y][new_x] = 'E'
                         with lock2:
                             self.map['changes'].add((new_x, new_y, 'E'))
+                        f_left = False
+                        for row in self.map['grid']:
+                            for tile in row:
+                                if tile == 'F':
+                                    f_left = True
+                                    break
+                        if not f_left:
+                            timer = threading.Timer(0.5, self.trigger_end, args=['win'])
+                            timer.start()
 
                     for i, (mx, my, _) in enumerate(self.map['monsters']):
                         old_mx, old_my = old_monsters[i]
                         if (new_x == old_mx and new_y == old_my) and (mx == old_px and my == old_py):
                             self.async_msg.put_msg_to_all(f'HIT~{self.player_num}')
+                            self.map[f'p{self.player_num}_alive'] = False
+                            if not self.map['p1_alive'] and not self.map['p2_alive']:
+                                timer = threading.Timer(0.5, self.trigger_end, args=['lose'])
+                                timer.start()
                 return 'ASYNC'
 
             if data[:3] == b'SPW':
                 direction = data[4:].decode()
                 self.update_after_spw(direction, int(self.map[f'p{self.player_num}'][0]), int(self.map[f'p{self.player_num}'][1]))
                 return 'ASYNC'
-                
+
+    def trigger_end(self, w_or_l):
+        self.async_msg.put_msg_to_all(f"GEN~{w_or_l}")
+        self.map['over'] = True
 
 
 

@@ -44,8 +44,8 @@ MAP_2_PLAYER2  = (13, 1)
 MAP_2_MONSTERS = [(5, 3, 'R'), (12, 8, 'R')]
 
 MAPS = [
-    {'grid': MAP_1, 'p1': MAP_1_PLAYER1, 'p2': MAP_1_PLAYER2, 'monsters': MAP_1_MONSTERS, 'changes': set(), 'p1_dir': 'U', 'p2_dir': 'U', 'scores': [0, 0]},
-    {'grid': MAP_2, 'p1': MAP_2_PLAYER1, 'p2': MAP_2_PLAYER2, 'monsters': MAP_2_MONSTERS, 'changes': set(), 'p1_dir': 'D', 'p2_dir': 'D', 'scores': [0, 0]},
+    {'grid': MAP_1, 'p1': MAP_1_PLAYER1, 'p2': MAP_1_PLAYER2, 'monsters': MAP_1_MONSTERS, 'changes': set(), 'p1_dir': 'U', 'p2_dir': 'U', 'scores': [0, 0], 'p1_alive': True, 'p2_alive': True, 'over': False},
+    {'grid': MAP_2, 'p1': MAP_2_PLAYER1, 'p2': MAP_2_PLAYER2, 'monsters': MAP_2_MONSTERS, 'changes': set(), 'p1_dir': 'D', 'p2_dir': 'D', 'scores': [0, 0], 'p1_alive': True, 'p2_alive': True, 'over': False},
 ]
 
 

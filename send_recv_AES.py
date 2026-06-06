@@ -7,7 +7,7 @@ from  tcp_by_size import send_with_size, recv_by_size
 import traceback
 
 
-AES_DEBUG = True
+AES_DEBUG = False
 
 
 class SendRecvAes:
