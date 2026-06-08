@@ -84,6 +84,8 @@ white_walk_frames_r = load_sprite_sheet('white_walk.png', 32, 32)
 white_walk_frames_l = [pygame.transform.flip(f, True, False) for f in white_walk_frames_r]
 
 monster_frames = load_sprite_sheet('SnowManIdle.png', 16, 16, scale=2)
+blue_death_frames  = load_sprite_sheet('blue_die.png',  32, 32)
+white_death_frames = load_sprite_sheet('white_die.png', 32, 32)
 
 _TILE_SIZE = 32
 
@@ -673,6 +675,14 @@ class MainScreen(Screen):
 
         self.player1_alive = True
         self.player2_alive = True
+
+        self.player1_dying = False
+        self.player1_death_frame = 0
+        self.player1_death_tick = 0
+
+        self.player2_dying = False
+        self.player2_death_frame = 0
+        self.player2_death_tick = 0
         self.grid = [['E'] * 26 for _ in range(14)]
         self.my_player_num = 0
         self.player1 = ()
@@ -810,19 +820,25 @@ class MainScreen(Screen):
         if self.player1 and self.player1_pixel:
             x = self._map_rect.x + self.player1_pixel[0]
             y = self._map_rect.y + self.player1_pixel[1]
-            if self.player1_hdir == 'R':
-                surf.blit(blue_walk_frames_r[self.anim_frame_1], (x, y))
-            else:
-                surf.blit(blue_walk_frames_l[self.anim_frame_1], (x, y))
+            if self.player1_dying:
+                surf.blit(blue_death_frames[self.player1_death_frame], (x, y))
+            elif self.player1_alive:
+                if self.player1_hdir == 'R':
+                    surf.blit(blue_walk_frames_r[self.anim_frame_1], (x, y))
+                else:
+                    surf.blit(blue_walk_frames_l[self.anim_frame_1], (x, y))
 
         # ── player 2 ──
         if self.player2 and self.player2_pixel:
             x = self._map_rect.x + self.player2_pixel[0]
             y = self._map_rect.y + self.player2_pixel[1]
-            if self.player2_hdir == 'R':
-                surf.blit(white_walk_frames_r[self.anim_frame_2], (x, y))
-            else:
-                surf.blit(white_walk_frames_l[self.anim_frame_2], (x, y))
+            if self.player2_dying:
+                surf.blit(white_death_frames[self.player2_death_frame], (x, y))
+            elif self.player2_alive:
+                if self.player2_hdir == 'R':
+                    surf.blit(white_walk_frames_r[self.anim_frame_2], (x, y))
+                else:
+                    surf.blit(white_walk_frames_l[self.anim_frame_2], (x, y))
 
 
 
@@ -902,9 +918,14 @@ class MainScreen(Screen):
     def player_die(self, num):
         if num == 1:
             self.player1_alive = False
+            self.player1_dying = True
+            self.player1_death_frame = 0
+            self.player1_death_tick = 0
         else:
             self.player2_alive = False
-        return
+            self.player2_dying = True
+            self.player2_death_frame = 0
+            self.player2_death_tick = 0
 
 
 
@@ -914,6 +935,24 @@ class MainScreen(Screen):
 
         # ── monster animation & movement ──
         self.monster_group.update()
+
+        # ── death animation player 1 ──
+        if self.player1_dying:
+            self.player1_death_tick += 1
+            if self.player1_death_tick >= 6:
+                self.player1_death_tick = 0
+                self.player1_death_frame += 1
+                if self.player1_death_frame >= len(blue_death_frames):
+                    self.player1_dying = False
+
+        # ── death animation player 2 ──
+        if self.player2_dying:
+            self.player2_death_tick += 1
+            if self.player2_death_tick >= 6:
+                self.player2_death_tick = 0
+                self.player2_death_frame += 1
+                if self.player2_death_frame >= len(white_death_frames):
+                    self.player2_dying = False
 
         # ── animation player 1 ──
         if self.player1 and self.player1_pixel:
@@ -1057,6 +1096,7 @@ class ClientGUI:
         self.user_list       = set()
         self._pending_username = ""
         self._pending_password = ""
+        self.game_over_result  = None
 
         # screens
         self._screens = {}
@@ -1173,15 +1213,9 @@ class ClientGUI:
                 self._current.player_die(num)
 
         if data[:3] == b'GEN':
-            if data[:3] == b'GEN':
-                condition = data.split(b'~')[1].decode()
-
-                # Switch the active screen display directly to our new EndScreen layout
-                self._current = EndScreen(condition)
-
-                # Start the 4-second timer to close the application (USEREVENT + 11)
-                pygame.time.set_timer(pygame.USEREVENT + 11, 4000)
-                return
+            condition = data.split(b'~')[1].decode()
+            self.game_over_result = condition
+            return
 
         if data[:3] == b'ACD':
             username = data.decode().split('~')[1]
@@ -1222,6 +1256,12 @@ class ClientGUI:
     def run(self):
         running = True
         while running:
+            if self.game_over_result and self._current_name == 'main':
+                self._current = EndScreen(self.game_over_result)
+                self._current_name = 'end'
+                self.game_over_result = None
+                pygame.time.set_timer(pygame.USEREVENT + 11, 4000)
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False

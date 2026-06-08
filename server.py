@@ -169,9 +169,11 @@ class ClientThread(threading.Thread):
                     if (dest_x == p1x and dest_y == p1y) or (x == p1x and y == p1y):
                         self.async_msg.put_msg_to_all(f'HIT~1')
                         self.map['p1_alive'] = False
+                        self.map['p1'] = (-1, -1)
                     elif (dest_x == p2x and dest_y == p2y) or (x == p2x and y == p2y):
                         self.async_msg.put_msg_to_all(f'HIT~2')
                         self.map['p2_alive'] = False
+                        self.map['p2'] = (-1, -1)
                     if not self.map['p1_alive'] and not self.map['p2_alive']:
                         timer = threading.Timer(0.5, self.trigger_end, args=['lose'])
                         timer.start()
@@ -268,6 +270,7 @@ class ClientThread(threading.Thread):
             if new_x == m_x and new_y == m_y:
                 self.async_msg.put_msg_to_all(f'HIT~{self.player_num}')
                 self.map[f'p{self.player_num}_alive'] = False
+                self.map[f'p{self.player_num}'] = (-1, -1)
                 if not self.map['p1_alive'] and not self.map['p2_alive']:
                     timer = threading.Timer(0.5, self.trigger_end, args=['lose'])
                     timer.start()
@@ -448,6 +451,7 @@ class ClientThread(threading.Thread):
                         if (new_x == old_mx and new_y == old_my) and (mx == old_px and my == old_py):
                             self.async_msg.put_msg_to_all(f'HIT~{self.player_num}')
                             self.map[f'p{self.player_num}_alive'] = False
+                            self.map[f'p{self.player_num}'] = (-1, -1)
                             if not self.map['p1_alive'] and not self.map['p2_alive']:
                                 timer = threading.Timer(0.5, self.trigger_end, args=['lose'])
                                 timer.start()
